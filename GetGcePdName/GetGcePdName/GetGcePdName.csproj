@@ -61,12 +61,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StorageAPI.cs" />
-    <Compile Include="STORAGE_BUS_TYPE.cs" />
-    <Compile Include="STORAGE_DEVICE_DESCRIPTOR.cs" />
-    <Compile Include="STORAGE_DEVICE_DESCRIPTOR_PARSED.cs" />
-    <Compile Include="STORAGE_PROPERTY_ID.cs" />
-    <Compile Include="STORAGE_PROPERTY_QUERY.cs" />
-    <Compile Include="STORAGE_QUERY_TYPE.cs" />
     <Compile Include="WinAPI.cs" />
   </ItemGroup>
   <ItemGroup>

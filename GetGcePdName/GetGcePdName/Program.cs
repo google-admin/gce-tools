@@ -5,8 +5,6 @@ using System.ComponentModel;  // for Win32Exception
 // https://github.com/DKorablin/DeviceIoControl
 using AlphaOmega.Debug;
 using AlphaOmega.Debug.Native;
-// https://github.com/LordMike/DeviceIOControlLib
-using DeviceIOControlLib.Objects.Storage;
 
 namespace GetGcePdName
 {
@@ -41,7 +39,7 @@ namespace GetGcePdName
     static extern bool DeviceIoControl(
         SafeFileHandle hDevice,
         DWORD dwIoControlCode,
-        ref STORAGE_PROPERTY_QUERY lpInBuffer,
+        ref StorageAPI.STORAGE_PROPERTY_QUERY lpInBuffer,
         DWORD nInBufferSize,
         out StorageAPI.STORAGE_DEVICE_ID_DESCRIPTOR lpOutBuffer,
         int nOutBufferSize,
@@ -83,10 +81,10 @@ namespace GetGcePdName
         throw new Win32Exception(Marshal.GetLastWin32Error());
 
       // https://stackoverflow.com/a/17354960/1230197
-      var query = new STORAGE_PROPERTY_QUERY
+      var query = new StorageAPI.STORAGE_PROPERTY_QUERY
       {
-        PropertyId = STORAGE_PROPERTY_ID.StorageDeviceIdProperty,  // page 83
-        QueryType = STORAGE_QUERY_TYPE.PropertyStandardQuery
+        PropertyId = StorageAPI.STORAGE_PROPERTY_QUERY.STORAGE_PROPERTY_ID.StorageDeviceIdProperty,  // page 83
+        QueryType = StorageAPI.STORAGE_PROPERTY_QUERY.STORAGE_QUERY_TYPE.PropertyStandardQuery
       };
       var qsize = (uint)Marshal.SizeOf(query);
       // https://stackoverflow.com/a/2069456/1230197

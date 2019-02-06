@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Runtime.InteropServices;  // for DllImport
+using System.Runtime.InteropServices;  // for DllImport, Marshal
 using System.ComponentModel;  // for Win32Exception
 
 // https://github.com/DKorablin/DeviceIoControl
@@ -61,12 +61,29 @@ namespace GetGcePdName
     static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
         IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS);
 
+    static void GetArgs(string[] args, ref long driveNumber)
+    {
+      if (args.Length != 1)
+      {
+        Console.WriteLine("Usage: GetGcePdName.exe <physical drive number>");
+        Environment.Exit(1);
+      }
+      driveNumber = Convert.ToInt64(args[0]);
+      if (driveNumber < 0)
+      {
+        Console.WriteLine("Please enter a positive drive number");
+        Environment.Exit(1);
+      }
+    }
+
     static void Main(string[] args)
     {
+      long driveNumber = -1;
+      GetArgs(args, ref driveNumber);
       // https://stackoverflow.com/a/18074777/1230197 suggests that
       // string should work for LPCTSTR.
       // TODO(pjh): take disk number as argument!
-      string physicalDisk = @"\\.\PHYSICALDRIVE0";
+      string physicalDisk = @"\\.\PHYSICALDRIVE" + driveNumber;
 
       var hDevice = CreateFile(physicalDisk,
           ((uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_READ |
@@ -78,7 +95,13 @@ namespace GetGcePdName
           IntPtr.Zero
           );
       if (hDevice.IsInvalid)
-        throw new Win32Exception(Marshal.GetLastWin32Error());
+      {
+        var e = new Win32Exception(Marshal.GetLastWin32Error());
+        Console.WriteLine("Error: {0}", e.ToString());
+        Console.WriteLine("Please use a valid physical drive number (e.g. " +
+          "(Get-PhysicalDisk).DeviceId)");
+        Environment.Exit(1);
+      }
 
       // https://stackoverflow.com/a/17354960/1230197
       var query = new StorageAPI.STORAGE_PROPERTY_QUERY

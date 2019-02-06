@@ -116,9 +116,9 @@ namespace GetGcePdName
         // the identifiers so it's an upper bound on the size of this
         // one.
         IntPtr storageIdentifierBuffer =
-          Marshal.AllocHGlobal(Constant.BUFFER_SIZE);
+          Marshal.AllocHGlobal(StorageAPI.BUFFER_SIZE);
         int identifiersBufferLeft =
-          Constant.BUFFER_SIZE - identifierBufferStart;
+          StorageAPI.BUFFER_SIZE - identifierBufferStart;
         Console.WriteLine("getting storageIdentifier {0} from memory [{1}, {2})",
             i, identifierBufferStart,
             identifierBufferStart + identifiersBufferLeft);

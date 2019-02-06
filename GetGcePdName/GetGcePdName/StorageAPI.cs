@@ -448,75 +448,75 @@ namespace AlphaOmega.Debug.Native
 			public UInt32 Size;
 			/// <summary>Contains the number of identifiers reported by the device in the Identifiers array.</summary>
 			public UInt32 NumberOfIdentifiers;
-            /// <summary>Contains a variable-length array of identification descriptors (STORAGE_IDENTIFIER).</summary>
-            // pjh: BUFFER_SIZE (512 bytes) is assumed to be sufficient here, apparently.
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = Constant.BUFFER_SIZE)]
+      /// <summary>Contains a variable-length array of identification descriptors (STORAGE_IDENTIFIER).</summary>
+      // pjh: BUFFER_SIZE (512 bytes) is assumed to be sufficient here.
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = Constant.BUFFER_SIZE)]
 			public Byte[] Identifiers;
 		}
 
-        // Adapted from C:\Program Files (x86)\Windows Kits\10\Include\10.0.17763.0\um\winioctl.h
-        //   WORD -> UInt16
-        //   BYTE[1] -> Byte[]
-        // The final variable-length array 'Identifiers' field is declared so
-        // that it matches STORAGE_DEVICE_ID_DESCRIPTOR just above. In
-        // particular the "MarshalAs(UnmanagedType.ByValArray)" annotation is
-        // critical - without it, calling Marshal.PtrToStructure on this memory
-        // will lead to "Unhandled Exception: System.AccessViolationException: 
-        // Attempted to read or write protected memory. This is often an
-        // indication that other memory is corrupt."
-        [StructLayout(LayoutKind.Sequential)]
-        public struct STORAGE_IDENTIFIER
+    // Adapted from C:\Program Files (x86)\Windows Kits\10\Include\10.0.17763.0\um\winioctl.h
+    //   WORD -> UInt16
+    //   BYTE[1] -> Byte[]
+    [StructLayout(LayoutKind.Sequential)]
+    public struct STORAGE_IDENTIFIER
+    {
+        // These enums are copied from
+        // C:\Program Files (x86)\Windows Kits\10\Include\10.0.17763.0\um\winioctl.h
+        public enum STORAGE_IDENTIFIER_CODE_SET : int
         {
-            // These enums are copied from
-            // C:\Program Files (x86)\Windows Kits\10\Include\10.0.17763.0\um\winioctl.h
-            public enum STORAGE_IDENTIFIER_CODE_SET : int
-            {
-                StorageIdCodeSetReserved = 0,
-                StorageIdCodeSetBinary = 1,
-                StorageIdCodeSetAscii = 2,
-                StorageIdCodeSetUtf8 = 3
-            }
-            public enum STORAGE_IDENTIFIER_TYPE : int
-            {
-                StorageIdTypeVendorSpecific = 0,
-                StorageIdTypeVendorId = 1,
-                StorageIdTypeEUI64 = 2,
-                StorageIdTypeFCPHName = 3,
-                StorageIdTypePortRelative = 4,
-                StorageIdTypeTargetPortGroup = 5,
-                StorageIdTypeLogicalUnitGroup = 6,
-                StorageIdTypeMD5LogicalUnitIdentifier = 7,
-                StorageIdTypeScsiNameString = 8
-            }
-            public enum STORAGE_ASSOCIATION_TYPE : int
-            {
-                StorageIdAssocDevice = 0,
-                StorageIdAssocPort = 1,
-                StorageIdAssocTarget = 2
-            }
-
-            public STORAGE_IDENTIFIER_CODE_SET CodeSet;
-            public STORAGE_IDENTIFIER_TYPE Type;
-            public UInt16 IdentifierSize;
-            public UInt16 NextOffset;
-            //
-            // Add new fields here since existing code depends on
-            // the above layout not changing.
-            //
-            public STORAGE_ASSOCIATION_TYPE Association;
-            //
-            // The identifier is a variable length array of bytes.
-            //
-            // pjh: we do not specify SizeConst here - this struct resides
-            // in the STORAGE_DEVICE_ID_DESCRIPTOR.Identifiers buffer which
-            // has already been reserved.
-            //[MarshalAs(UnmanagedType.ByValArray)]
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = Constant.BUFFER_SIZE)]
-            public Byte[] Identifier;
+            StorageIdCodeSetReserved = 0,
+            StorageIdCodeSetBinary = 1,
+            StorageIdCodeSetAscii = 2,
+            StorageIdCodeSetUtf8 = 3
+        }
+        public enum STORAGE_IDENTIFIER_TYPE : int
+        {
+            StorageIdTypeVendorSpecific = 0,
+            StorageIdTypeVendorId = 1,
+            StorageIdTypeEUI64 = 2,
+            StorageIdTypeFCPHName = 3,
+            StorageIdTypePortRelative = 4,
+            StorageIdTypeTargetPortGroup = 5,
+            StorageIdTypeLogicalUnitGroup = 6,
+            StorageIdTypeMD5LogicalUnitIdentifier = 7,
+            StorageIdTypeScsiNameString = 8
+        }
+        public enum STORAGE_ASSOCIATION_TYPE : int
+        {
+            StorageIdAssocDevice = 0,
+            StorageIdAssocPort = 1,
+            StorageIdAssocTarget = 2
         }
 
-        /// <summary>Used with the <see cref="T:Constant.IOCTL_STORAGE.QUERY_PROPERTY"/> control code to retrieve the storage adapter descriptor data for a device.</summary>
-        [StructLayout(LayoutKind.Sequential)]
+        public STORAGE_IDENTIFIER_CODE_SET CodeSet;
+        public STORAGE_IDENTIFIER_TYPE Type;
+        public UInt16 IdentifierSize;
+        public UInt16 NextOffset;
+        //
+        // Add new fields here since existing code depends on
+        // the above layout not changing.
+        //
+        public STORAGE_ASSOCIATION_TYPE Association;
+        //
+        // The identifier is a variable length array of bytes.
+        //
+        // pjh: The final variable-length array 'Identifiers' field is declared
+        // so that it matches STORAGE_DEVICE_ID_DESCRIPTOR just above. In
+        // particular the "MarshalAs(UnmanagedType.ByValArray)" annotation is
+        // critical. Without the "UnmanagedType.ByValArray" annotation, calling
+        // Marshal.PtrToStructure on this memory will lead to "Unhandled
+        // Exception: System.AccessViolationException: Attempted to read or
+        // write protected memory. Without the SizeConst annotation, calling
+        // Marshal.Copy from the Identifier array will lead to
+        // "System.ArgumentOutOfRangeException: Requested range extends past the
+        // end of the array" because the runtime assumes a default length of 1
+        // for the managed Byte[].
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = Constant.BUFFER_SIZE)]
+        public Byte[] Identifier;
+    }
+
+    /// <summary>Used with the <see cref="T:Constant.IOCTL_STORAGE.QUERY_PROPERTY"/> control code to retrieve the storage adapter descriptor data for a device.</summary>
+    [StructLayout(LayoutKind.Sequential)]
 		public struct STORAGE_ADAPTER_DESCRIPTOR
 		{
 			/// <summary>Contains the size of this structure, in bytes. The value of this member will change as members are added to the structure.</summary>

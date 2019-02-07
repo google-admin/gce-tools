@@ -9,17 +9,17 @@ using AlphaOmega.Debug.Native;
 namespace GetGcePdName
 {
   using Microsoft.Win32.SafeHandles;
+  
+  using LPSECURITY_ATTRIBUTES = System.IntPtr;
+  using LPOVERLAPPED = System.IntPtr;
+  using HANDLE = System.IntPtr;
+  using DWORD = System.UInt32;
+  using LPCTSTR = System.String;
 
-  using LPSECURITY_ATTRIBUTES = IntPtr;
-  using LPOVERLAPPED = IntPtr;
-  using HANDLE = IntPtr;
-  using DWORD = UInt32;
-  using LPCTSTR = String;
-
-  class Program
+  public class Program
   {
-    const bool DEBUG = false;
-    static void WriteDebugLine(string line)
+    private const bool DEBUG = false;
+    private static void WriteDebugLine(string line)
     {
       if (DEBUG)
       {
@@ -73,18 +73,18 @@ namespace GetGcePdName
     {
       if (args.Length != 1)
       {
-        WriteDebugLine("Usage: GetGcePdName.exe <physical drive number>");
+        Console.WriteLine("Usage: GetGcePdName.exe <physical drive number>");
         Environment.Exit(1);
       }
       driveNumber = Convert.ToInt64(args[0]);
       if (driveNumber < 0)
       {
-        WriteDebugLine("Please enter a positive drive number");
+        Console.WriteLine("Please enter a positive drive number");
         Environment.Exit(1);
       }
     }
 
-    static void GetGcePdName(string physicalDrive)
+    public static string Get_GcePdName(string physicalDrive)
     {
       var hDevice = CreateFile(physicalDrive,
           ((uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_READ |
@@ -171,7 +171,7 @@ namespace GetGcePdName
           // this here?
           string name = System.Text.Encoding.ASCII.GetString(
             storageIdentifier.Identifier, 0, storageIdentifier.IdentifierSize);
-          Console.WriteLine(name);
+          return name;
         }
 
         // To get the start of the next identifier we need to advance
@@ -198,6 +198,7 @@ namespace GetGcePdName
         WriteDebugLine("");
         Marshal.FreeHGlobal(storageIdentifierBuffer);
       }
+      return null;
     }
 
     static void Main(string[] args)
@@ -206,10 +207,11 @@ namespace GetGcePdName
       GetArgs(args, ref driveNumber);
       // https://stackoverflow.com/a/18074777/1230197 suggests that
       // string should work for LPCTSTR.
-      // TODO(pjh): take disk number as argument!
       string physicalDrive = @"\\.\PHYSICALDRIVE" + driveNumber;
-
-      GetGcePdName(physicalDrive);
+      
+      string name = Get_GcePdName(physicalDrive);
+      // TODO(pjh): handle null return value here.
+      Console.WriteLine(name);
     }
   }
 }

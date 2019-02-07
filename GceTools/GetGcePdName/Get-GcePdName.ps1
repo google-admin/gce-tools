@@ -417,17 +417,16 @@ using Microsoft.Win32.SafeHandles;
       return null;
     }
 
-    //static void Main(string[] args)
-    //{
-    //  long driveNumber = -1;
-    //  GetArgs(args, ref driveNumber);
-    //  // https://stackoverflow.com/a/18074777/1230197 suggests that
-    //  // string should work for LPCTSTR.
-    //  // TODO(pjh): take disk number as argument!
-    //  string physicalDrive = @"\\.\PHYSICALDRIVE" + driveNumber;
-    //
-    //  Get_GcePdName(physicalDrive);
-    //}
+    static void Main(string[] args)
+    {
+      long driveNumber = -1;
+      GetArgs(args, ref driveNumber);
+      // https://stackoverflow.com/a/18074777/1230197 suggests that
+      // string should work for LPCTSTR.
+      string physicalDrive = @"\\.\PHYSICALDRIVE" + driveNumber;
+    
+      Get_GcePdName(physicalDrive);
+    }
   }
 //}
 "@

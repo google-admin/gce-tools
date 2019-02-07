@@ -58,7 +58,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="GetGcePdName.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StorageAPI.cs" />
     <Compile Include="WinAPI.cs" />

@@ -6,7 +6,7 @@ using System.ComponentModel;  // for Win32Exception
 using AlphaOmega.Debug;
 using AlphaOmega.Debug.Native;
 
-namespace GetGcePdName
+namespace GceTools
 {
   using Microsoft.Win32.SafeHandles;
   
@@ -16,7 +16,7 @@ namespace GetGcePdName
   using DWORD = System.UInt32;
   using LPCTSTR = System.String;
 
-  public class Program
+  public class GetGcePdName
   {
     private const bool DEBUG = false;
     private static void WriteDebugLine(string line)

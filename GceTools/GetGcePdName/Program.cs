@@ -18,6 +18,14 @@ namespace GetGcePdName
 
   class Program
   {
+    const bool DEBUG = false;
+    static void WriteDebugLine(string line)
+    {
+      if (DEBUG)
+      {
+        Console.WriteLine(line);
+      }
+    }
     // https://www.pinvoke.net/default.aspx/kernel32.deviceiocontrol
     // https://codereview.stackexchange.com/q/23264
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -65,27 +73,20 @@ namespace GetGcePdName
     {
       if (args.Length != 1)
       {
-        Console.WriteLine("Usage: GetGcePdName.exe <physical drive number>");
+        WriteDebugLine("Usage: GetGcePdName.exe <physical drive number>");
         Environment.Exit(1);
       }
       driveNumber = Convert.ToInt64(args[0]);
       if (driveNumber < 0)
       {
-        Console.WriteLine("Please enter a positive drive number");
+        WriteDebugLine("Please enter a positive drive number");
         Environment.Exit(1);
       }
     }
 
-    static void Main(string[] args)
+    static void GetGcePdName(string physicalDrive)
     {
-      long driveNumber = -1;
-      GetArgs(args, ref driveNumber);
-      // https://stackoverflow.com/a/18074777/1230197 suggests that
-      // string should work for LPCTSTR.
-      // TODO(pjh): take disk number as argument!
-      string physicalDisk = @"\\.\PHYSICALDRIVE" + driveNumber;
-
-      var hDevice = CreateFile(physicalDisk,
+      var hDevice = CreateFile(physicalDrive,
           ((uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_READ |
            (uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_WRITE),
           (uint)WinAPI.FILE_SHARE.READ,
@@ -97,8 +98,8 @@ namespace GetGcePdName
       if (hDevice.IsInvalid)
       {
         var e = new Win32Exception(Marshal.GetLastWin32Error());
-        Console.WriteLine("Error: {0}", e.ToString());
-        Console.WriteLine("Please use a valid physical drive number (e.g. " +
+        WriteDebugLine(String.Format("Error: {0}", e.ToString()));
+        WriteDebugLine("Please use a valid physical drive number (e.g. " +
           "(Get-PhysicalDisk).DeviceId)");
         Environment.Exit(1);
       }
@@ -124,7 +125,7 @@ namespace GetGcePdName
       // our ioctl returns variable-length structs/arrays we do not care.
 
       uint numIdentifiers = result.NumberOfIdentifiers;
-      Console.WriteLine("numIdentifiers: {0}", numIdentifiers);
+      WriteDebugLine(String.Format("numIdentifiers: {0}", numIdentifiers));
 
       int identifierBufferStart = 0;
       for (int i = 0; i < numIdentifiers; ++i)
@@ -140,9 +141,10 @@ namespace GetGcePdName
           Marshal.AllocHGlobal(StorageAPI.BUFFER_SIZE);
         int identifiersBufferLeft =
           StorageAPI.BUFFER_SIZE - identifierBufferStart;
-        Console.WriteLine("getting storageIdentifier {0} from memory [{1}, {2})",
+        WriteDebugLine(
+          String.Format("getting storageIdentifier {0} from memory [{1}, {2})",
             i, identifierBufferStart,
-            identifierBufferStart + identifiersBufferLeft);
+            identifierBufferStart + identifiersBufferLeft));
         Marshal.Copy(result.Identifiers, identifierBufferStart,
             storageIdentifierBuffer, identifiersBufferLeft);
 
@@ -150,12 +152,12 @@ namespace GetGcePdName
           Marshal.PtrToStructure<StorageAPI.STORAGE_IDENTIFIER>(
             storageIdentifierBuffer);
 
-        Console.WriteLine("storageIdentifier type: {0} ({1})",
-            storageIdentifier.Type, (int)storageIdentifier.Type);
-        Console.WriteLine("storageIdentifier association: {0} ({1})",
-            storageIdentifier.Association, (int)storageIdentifier.Association);
-        Console.WriteLine("storageIdentifier size: {0}",
-          (int)storageIdentifier.IdentifierSize);
+        WriteDebugLine(String.Format("storageIdentifier type: {0} ({1})",
+            storageIdentifier.Type, (int)storageIdentifier.Type));
+        WriteDebugLine(String.Format("storageIdentifier association: {0} ({1})",
+            storageIdentifier.Association, (int)storageIdentifier.Association));
+        WriteDebugLine(String.Format("storageIdentifier size: {0}",
+          (int)storageIdentifier.IdentifierSize));
 
         if (storageIdentifier.Type == StorageAPI.STORAGE_IDENTIFIER.STORAGE_IDENTIFIER_TYPE.StorageIdTypeVendorId &&
             storageIdentifier.Association == StorageAPI.STORAGE_IDENTIFIER.STORAGE_ASSOCIATION_TYPE.StorageIdAssocDevice)
@@ -165,9 +167,11 @@ namespace GetGcePdName
           Marshal.Copy(storageIdentifier.Identifier, 0,
             identifierData, storageIdentifier.IdentifierSize);
 
+          // TODO(pjh): name always seems to have "Google  " prefix - strip
+          // this here?
           string name = System.Text.Encoding.ASCII.GetString(
             storageIdentifier.Identifier, 0, storageIdentifier.IdentifierSize);
-          Console.WriteLine("name: {0}", name);
+          Console.WriteLine(name);
         }
 
         // To get the start of the next identifier we need to advance
@@ -184,17 +188,28 @@ namespace GetGcePdName
         // using Marshal.SizeOf, but it's 20 bytes - this value is
         // fixed (for this platform at least) by the definition of
         // STORAGE_IDENTIFIER in winioctl.h.
-        int advanceBy = 20 - sizeof(byte) +
-            storageIdentifier.IdentifierSize;
-        Console.WriteLine("advanceBy = {0} - {1} + {2} = {3}",
-            20, sizeof(byte),
-            storageIdentifier.IdentifierSize, advanceBy);
+        int advanceBy = 20 - sizeof(byte) + storageIdentifier.IdentifierSize;
+        WriteDebugLine(
+          String.Format("advanceBy = {0} - {1} + {2} = {3}",
+            20, sizeof(byte), storageIdentifier.IdentifierSize, advanceBy));
         identifierBufferStart += advanceBy;
-        Console.WriteLine("will read next identifier starting at {0}",
-          identifierBufferStart);
-        Console.WriteLine("");
+        WriteDebugLine(String.Format("will read next identifier starting at {0}",
+          identifierBufferStart));
+        WriteDebugLine("");
         Marshal.FreeHGlobal(storageIdentifierBuffer);
       }
+    }
+
+    static void Main(string[] args)
+    {
+      long driveNumber = -1;
+      GetArgs(args, ref driveNumber);
+      // https://stackoverflow.com/a/18074777/1230197 suggests that
+      // string should work for LPCTSTR.
+      // TODO(pjh): take disk number as argument!
+      string physicalDrive = @"\\.\PHYSICALDRIVE" + driveNumber;
+
+      GetGcePdName(physicalDrive);
     }
   }
 }

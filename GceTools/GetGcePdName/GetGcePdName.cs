@@ -2,9 +2,10 @@
 
 namespace GceTools
 {
-  class GetGcePdName
+  public class GetGcePdName
   {
-    static void GetArgs(string[] args, ref long driveNumber)
+#if false
+    private static void GetArgs(string[] args, ref long driveNumber)
     {
       if (args.Length != 1)
       {
@@ -32,6 +33,6 @@ namespace GceTools
       Console.WriteLine(name);
     }
 
+#endif
   }
-
 }

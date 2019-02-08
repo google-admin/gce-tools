@@ -56,17 +56,17 @@ namespace GceTools
         );
 
     // Copied from C:\Program Files (x86)\Windows Kits\10\Include\10.0.17763.0\um\winioctl.h
-    static uint CTL_CODE(uint DeviceType, uint Function,
+    private static uint CTL_CODE(uint DeviceType, uint Function,
       uint Method, uint Access)
     {
       return (DeviceType << 16) | (Access << 14) | (Function) << 2 | Method;
     }
     // static readonly: https://stackoverflow.com/a/16143924/1230197
-    static readonly uint METHOD_BUFFERED = 0;
-    static readonly uint FILE_ANY_ACCESS = 0;
-    static readonly uint FILE_DEVICE_MASS_STORAGE = 0x0000002d;
-    static readonly uint IOCTL_STORAGE_BASE = FILE_DEVICE_MASS_STORAGE;
-    static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
+    private static readonly uint METHOD_BUFFERED = 0;
+    private static readonly uint FILE_ANY_ACCESS = 0;
+    private static readonly uint FILE_DEVICE_MASS_STORAGE = 0x0000002d;
+    private static readonly uint IOCTL_STORAGE_BASE = FILE_DEVICE_MASS_STORAGE;
+    private static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
         IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS);
 
     public static string Get_GcePdName(string physicalDrive)

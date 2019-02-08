@@ -1,4 +1,5 @@
-﻿Add-Type -TypeDefinition @"
+﻿# Copied from Program.cs
+Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;  // for DllImport, Marshal
 using System.ComponentModel;  // for Win32Exception
@@ -158,8 +159,8 @@ using Microsoft.Win32.SafeHandles;
     }
   }
 
-// Copied and adapted from
-// https://github.com/DKorablin/DeviceIoControl/blob/master/DeviceIoControl/Native/WinAPI.cs
+  // Copied and adapted from
+  // https://github.com/DKorablin/DeviceIoControl/blob/master/DeviceIoControl/Native/WinAPI.cs
   /// <summary>Native structures</summary>
   public struct WinAPI
 	{
@@ -228,8 +229,6 @@ using Microsoft.Win32.SafeHandles;
     }
   }
 
-//namespace GetGcePdName
-//{
   //class Program
   public class GetGcePdName
   {
@@ -428,6 +427,5 @@ using Microsoft.Win32.SafeHandles;
       Get_GcePdName(physicalDrive);
     }
   }
-//}
 "@
 

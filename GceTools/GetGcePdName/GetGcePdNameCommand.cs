@@ -11,6 +11,8 @@
 
 namespace GetGcePdName
 {
+  using System;  // for InvalidOperationException
+  using System.ComponentModel;  // for Win32Exception
   // To get System.Management.Automation, right-click on References in the
   // Solution Explorer and choose Manage NuGet Packages. On the Browse tab search
   // for "powershell reference" and install the official Microsoft
@@ -20,7 +22,6 @@ namespace GetGcePdName
   // and perhaps:
   //   https://github.com/PowerShell/PowerShell/issues/2284#issuecomment-247655190
   using System.Management.Automation;
-  using GceTools;
 
   #region GetGcePdNameCommand
 
@@ -62,13 +63,24 @@ namespace GetGcePdName
     {
       if (this.deviceIds == null)
       {
-        // TODO: provide helpful error message.
-        WriteObject("deviceIds is null");
+        var ex = new InvalidOperationException("No device IDs specified");
+        WriteError(new ErrorRecord(ex, ex.ToString(),
+          ErrorCategory.InvalidOperation, ""));
         return;
       }
       for (int i = 0; i < this.deviceIds.Length; ++i)
       {
-        WriteObject(GceTools.GcePdLib.Get_GcePdName(this.deviceIds[i]));
+        try
+        {
+          string name = GceTools.GcePdLib.Get_GcePdName(this.deviceIds[i]);
+          WriteObject(name);
+        }
+        catch (Win32Exception ex)
+        {
+          WriteError(new ErrorRecord(ex, ex.ToString(),
+            ErrorCategory.ReadError, this.deviceIds[i]));
+          continue;
+        }      
       }
     }
     #endregion Cmdlet Overrides

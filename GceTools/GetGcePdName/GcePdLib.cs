@@ -9,7 +9,7 @@ using AlphaOmega.Debug.Native;
 namespace GceTools
 {
   using Microsoft.Win32.SafeHandles;
-  
+
   using LPSECURITY_ATTRIBUTES = System.IntPtr;
   using LPOVERLAPPED = System.IntPtr;
   using HANDLE = System.IntPtr;
@@ -18,15 +18,23 @@ namespace GceTools
 
   public class GcePdLib
   {
+    // Append the drive number to this string for use with the CreateFile API.
+    private const string PHYSICALDRIVE = @"\\.\PHYSICALDRIVE";
+    // The SCSI query that we execute below returns a string for the disk name
+    // that includes this prefix plus the PD name that we care about.
+    private const string GOOGLEPREFIX = "Google  ";
+
     private const bool DEBUG = false;
     private static void WriteDebugLine(string line)
     {
+#pragma warning disable CS0162 // Unreachable code detected
       if (DEBUG)
       {
         Console.WriteLine(line);
       }
+#pragma warning restore CS0162 // Unreachable code detected
     }
-    // https://www.pinvoke.net/default.aspx/kernel32.deviceiocontrol
+    // https://www.pinvoke.net/default.aspx/kernel32.createfile
     // https://codereview.stackexchange.com/q/23264
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern SafeFileHandle CreateFile(
@@ -69,8 +77,11 @@ namespace GceTools
     private static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
         IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS);
 
-    public static string Get_GcePdName(string physicalDrive)
+    // deviceId is the physical disk number, e.g. from Get-PhysicalDisk.
+    // Throws: System.ComponentModel.Win32Exception
+    public static string Get_GcePdName(string deviceId)
     {
+      string physicalDrive = PHYSICALDRIVE + deviceId;
       var hDevice = CreateFile(physicalDrive,
           ((uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_READ |
            (uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_WRITE),
@@ -82,11 +93,13 @@ namespace GceTools
           );
       if (hDevice.IsInvalid)
       {
-        var e = new Win32Exception(Marshal.GetLastWin32Error());
+        var e = new Win32Exception(Marshal.GetLastWin32Error(),
+          String.Format("CreateFile({0}) failed. Is the drive number valid?",
+          physicalDrive));
         WriteDebugLine(String.Format("Error: {0}", e.ToString()));
         WriteDebugLine("Please use a valid physical drive number (e.g. " +
           "(Get-PhysicalDisk).DeviceId)");
-        Environment.Exit(1);
+        throw e;
       }
 
       // https://stackoverflow.com/a/17354960/1230197
@@ -104,10 +117,13 @@ namespace GceTools
                    ref query, qsize, out result, rsize, ref written,
                    IntPtr.Zero);
       if (!ok)
-        throw new Win32Exception();
-      // rsize will be something like 524 and written will be something like 88;
-      // some code examples fail if these two values are not equal, but since
-      // our ioctl returns variable-length structs/arrays we do not care.
+      {
+        var e = new Win32Exception(Marshal.GetLastWin32Error(),
+        String.Format("DeviceIoControl({0}) failed", physicalDrive));
+        WriteDebugLine(String.Format("Error: {0}", e.ToString()));
+        hDevice.Close();
+        throw e;
+      }
 
       uint numIdentifiers = result.NumberOfIdentifiers;
       WriteDebugLine(String.Format("numIdentifiers: {0}", numIdentifiers));
@@ -117,11 +133,10 @@ namespace GceTools
       {
         // Example:
         // https://docs.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.marshal.copy?view=netframework-4.7.2#System_Runtime_InteropServices_Marshal_Copy_System_Byte___System_Int32_System_IntPtr_System_Int32_.
-        // We don't know exactly how large this identifier is until we
-        // marshal the struct below. "Constant.BUFFER_SIZE" is used by
-        // STORAGE_DEVICE_ID_DESCRIPTOR for the combined size of all
-        // the identifiers so it's an upper bound on the size of this
-        // one.
+        // We don't know exactly how large this identifier is until we marshal
+        // the struct below. "BUFFER_SIZE" is used by
+        // STORAGE_DEVICE_ID_DESCRIPTOR for the combined size of all the
+        // identifiers so it's an upper bound on the size of this one.
         IntPtr storageIdentifierBuffer =
           Marshal.AllocHGlobal(StorageAPI.BUFFER_SIZE);
         int identifiersBufferLeft =
@@ -152,11 +167,21 @@ namespace GceTools
           Marshal.Copy(storageIdentifier.Identifier, 0,
             identifierData, storageIdentifier.IdentifierSize);
 
-          // TODO(pjh): name always seems to have "Google  " prefix - strip
-          // this here?
-          string name = System.Text.Encoding.ASCII.GetString(
+          // Make sure to close the file handle before returning, or subsequent
+          // CreateFile calls for this disk or others may fail.
+          hDevice.Close();
+
+          string fullName = System.Text.Encoding.ASCII.GetString(
             storageIdentifier.Identifier, 0, storageIdentifier.IdentifierSize);
-          return name;
+          // TODO(pjh): make this more robust? Works well enough on two Windows
+          // Server 2016 VMs at least.
+          if (!fullName.StartsWith(GOOGLEPREFIX))
+          {
+            Console.WriteLine("WARNING: unexpectedly got back disk name {0} " +
+              "that doesn't contain Google prefix {1}", fullName, GOOGLEPREFIX);
+            return fullName;
+          }
+          return fullName.Substring(GOOGLEPREFIX.Length);
         }
 
         // To get the start of the next identifier we need to advance
@@ -183,6 +208,7 @@ namespace GceTools
         WriteDebugLine("");
         Marshal.FreeHGlobal(storageIdentifierBuffer);
       }
+      hDevice.Close();
       return null;
     }
   }

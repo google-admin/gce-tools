@@ -1,12 +1,18 @@
 ﻿// To test and debug this cmdlet:
 //   - Build the solution (see below if you get errors for
 //     System.Management.Automation).
-//   - Import-Module -Verbose -Force -Name C:\...\GceTools\GetGcePdName\bin\Debug\GetGcePdName.dll
-//   - Get-Module  # verify Get-GcePdName is exported from GetGcePdName module
-//   - Get-GcePdName -?
+//   - In powershell use a nested powershell to:
+//     - Import-Module -Verbose -Force -Name C:\...\GceTools\GetGcePdName\bin\Debug\GetGcePdName.dll
+//     - Get-Module  # verify Get-GcePdName is exported from GetGcePdName module
+//     - Get-GcePdName -?
+//   - Close the nested powershell and reopen a new one to re-build; Visual
+//     Studio will not overwrite the .dll while the powershell that imported it
+//     is still running.
 
 namespace GetGcePdName
 {
+  using System;  // for InvalidOperationException
+  using System.ComponentModel;  // for Win32Exception
   // To get System.Management.Automation, right-click on References in the
   // Solution Explorer and choose Manage NuGet Packages. On the Browse tab search
   // for "powershell reference" and install the official Microsoft
@@ -29,34 +35,20 @@ namespace GetGcePdName
     // need to know is recommended.
 
     #region Parameters
-    ///// <summary>
-    ///// The physical disk numbers to get the PD name of.
-    ///// </summary>
-    //// The type is string to match the DeviceId property from Get-PhysicalDisk
-    //// (type 
-    //// Microsoft.Management.Infrastructure.CimInstance#root/microsoft/windows/storage/MSFT_PhysicalDisk).
-    //private string[] physicalDiskNumbers;
-
-    //// TODO(pjh): do better input validation:
-    //// https://docs.microsoft.com/en-us/powershell/developer/cmdlet/how-to-validate-parameter-input
-    //[Parameter(Position = 0)]
-    //[ValidateNotNullOrEmpty]
-    //public string[] PhysicalDiskNumber
-    //{
-    //  get { return this.physicalDiskNumbers; }
-    //  set { this.physicalDiskNumbers = value; }
-    //}
-
     /// <summary>
-    /// List of DeviceId properties from Get-PhysicalDisk.
+    /// List of physical disk numbers.
     /// </summary>
     // The type is string to match the DeviceId property from Get-PhysicalDisk
-    // (type 
-    // Microsoft.Management.Infrastructure.CimInstance#root/microsoft/windows/storage/MSFT_PhysicalDisk).
+    // (Microsoft.Management.Infrastructure.CimInstance#root/microsoft/windows/storage/MSFT_PhysicalDisk).
+    // The Parameter declaration here supports specifying the list of disk
+    // numbers in three ways:
+    //   Get-GcePdName 1,3,5
+    //   @(1,3,5) | Get-GcePdName
+    //   Get-PhysicalDisk | Get-GcePdName
     private string[] deviceIds;
     [Parameter(
       Position = 0,
-      //ValueFromPipeline = true,
+      ValueFromPipeline = true,
       ValueFromPipelineByPropertyName = true)]
     [ValidateNotNullOrEmpty]
     public string[] DeviceId
@@ -69,30 +61,26 @@ namespace GetGcePdName
     #region Cmdlet Overrides
     protected override void ProcessRecord()
     {
-      //// If no process names are passed to the cmdlet, get all
-      //// processes.
-      //if (this.physicalDiskNumbers == null)
-      //{
-      //  WriteObject("physicalDiskNumbers is null");
-      //}
-      //else
-      //{
-      //  foreach (string diskNum in this.physicalDiskNumbers)
-      //  {
-      //    WriteObject(string.Format("physicalDiskNumber {0}", diskNum), true);
-      //  }
-      //}
-
       if (this.deviceIds == null)
       {
-        WriteObject("deviceIds is null");
+        var ex = new InvalidOperationException("No device IDs specified");
+        WriteError(new ErrorRecord(ex, ex.ToString(),
+          ErrorCategory.InvalidOperation, ""));
+        return;
       }
-      else
+      for (int i = 0; i < this.deviceIds.Length; ++i)
       {
-        foreach (string id in this.deviceIds)
+        try
         {
-          WriteObject(string.Format("deviceId {0}", id), true);
+          string name = GceTools.GcePdLib.Get_GcePdName(this.deviceIds[i]);
+          WriteObject(name);
         }
+        catch (Win32Exception ex)
+        {
+          WriteError(new ErrorRecord(ex, ex.ToString(),
+            ErrorCategory.ReadError, this.deviceIds[i]));
+          continue;
+        }      
       }
     }
     #endregion Cmdlet Overrides

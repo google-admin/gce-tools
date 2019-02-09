@@ -9,7 +9,7 @@ using AlphaOmega.Debug.Native;
 namespace GceTools
 {
   using Microsoft.Win32.SafeHandles;
-  
+
   using LPSECURITY_ATTRIBUTES = System.IntPtr;
   using LPOVERLAPPED = System.IntPtr;
   using HANDLE = System.IntPtr;
@@ -18,6 +18,12 @@ namespace GceTools
 
   public class GcePdLib
   {
+    // Append the drive number to this string for use with the CreateFile API.
+    private const string PHYSICALDRIVE = @"\\.\PHYSICALDRIVE";
+    // The SCSI query that we execute below returns a string for the disk name
+    // that includes this prefix plus the PD name that we care about.
+    private const string GOOGLEPREFIX = "Google  ";
+
     private const bool DEBUG = false;
     private static void WriteDebugLine(string line)
     {
@@ -69,8 +75,10 @@ namespace GceTools
     private static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
         IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS);
 
-    public static string Get_GcePdName(string physicalDrive)
+    // deviceId is the physical disk number, e.g. from Get-PhysicalDisk.
+    public static string Get_GcePdName(string deviceId)
     {
+      string physicalDrive = PHYSICALDRIVE + deviceId;
       var hDevice = CreateFile(physicalDrive,
           ((uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_READ |
            (uint)WinAPI.FILE_ACCESS_FLAGS.GENERIC_WRITE),
@@ -104,7 +112,7 @@ namespace GceTools
                    ref query, qsize, out result, rsize, ref written,
                    IntPtr.Zero);
       if (!ok)
-        throw new Win32Exception();
+        throw new Win32Exception("DeviceIoControl failed");
       // rsize will be something like 524 and written will be something like 88;
       // some code examples fail if these two values are not equal, but since
       // our ioctl returns variable-length structs/arrays we do not care.
@@ -154,9 +162,15 @@ namespace GceTools
 
           // TODO(pjh): name always seems to have "Google  " prefix - strip
           // this here?
-          string name = System.Text.Encoding.ASCII.GetString(
+          string fullName = System.Text.Encoding.ASCII.GetString(
             storageIdentifier.Identifier, 0, storageIdentifier.IdentifierSize);
-          return name;
+          if (!fullName.StartsWith(GOOGLEPREFIX))
+          {
+            Console.WriteLine("WARNING: unexpectedly got back disk name {0} " +
+              "that doesn't contain Google prefix {1}", fullName, GOOGLEPREFIX);
+            return fullName;
+          }
+          return fullName.Substring(GOOGLEPREFIX.Length);
         }
 
         // To get the start of the next identifier we need to advance

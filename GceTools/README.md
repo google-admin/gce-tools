@@ -27,8 +27,8 @@ dll for the PowerShell module. To use the prebuilt dll, you must first
 from a remote source. From the root of this repository run:
 
 ```
-Unblock-File ".\GceTools\GetGcePdName\GetGcePdName.dll"
 $modulePath = ".\GceTools\GetGcePdName\GetGcePdName.dll"
+Unblock-File $modulePath
 ```
 
 Or if you built the GetGcePdName code yourself, then use:
@@ -57,12 +57,33 @@ or `MSFT_PhysicalDisk` objects from the `Get-PhysicalDisk` cmdlet can be piped
 to `Get-GcePdName`.
 
 ```
+PS > Get-GcePdName
+Name       DeviceId
+----       --------
+mypd-2     2
+mypd-1     1
+pds-2019-0 0
+
+PS > $targetPd = "mypd-1"
+PS > (Get-GcePdName | Where-Object Name -eq $targetPd).DeviceId
+1
+
 PS > Get-GcePdName 0
-pds-2019-0
+Name       DeviceId
+----       --------
+pds-2019-0 0
 
 PS > Get-GcePdName 1,2
-mypd-1
-mypd-2
+Name   DeviceId
+----   --------
+mypd-1 1
+mypd-2 2
+
+PS > @(2,0) | Get-GcePdName
+Name       DeviceId
+----       --------
+mypd-2     2
+pds-2019-0 0
 
 PS > Get-PhysicalDisk | Select-Object DeviceId,FriendlyName,Size | Format-Table
 
@@ -72,26 +93,8 @@ DeviceId FriendlyName                 Size
 0        Google PersistentDisk 53687091200
 2        Google PersistentDisk 26843545600
 
-PS > Get-PhysicalDisk | Get-GcePdName
-mypd-1
-pds-2019-0
-mypd-2
-
 PS > Get-PhysicalDisk | Where-Object DeviceId -eq 1 | Get-GcePdName
-mypd-1
-
-# Fetching the DeviceId from a target PD name currently requires a few steps:
-PS > $target = 'target-pd-name'
-PS > $deviceIds = $((Get-PhysicalDisk | Sort-Object DeviceId).DeviceId)
-PS > $names = $($deviceIds | Get-GcePdName)
-PS > $map = for ($i = 0; $i -lt $deviceIds.Count; $i++) {
-  [PSCustomObject]@{
-    DeviceId = $deviceIds[$i]
-    Name = $names[$i]
-  }
-}
-PS > ($map | Where-Object Name -eq $target).DeviceId
+Name   DeviceId
+----   --------
+mypd-1 1
 ```
-
-TODO(pjh): update Get-GcePdName to return this custom object directly! Perhaps a
-hash table from name to id makes most sense.

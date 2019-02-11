@@ -85,11 +85,18 @@ namespace GetGcePdName
     {
       if (deviceIds == null)
       {
-        var ex = new InvalidOperationException("No device IDs specified");
-        WriteError(new ErrorRecord(ex, ex.ToString(),
-          ErrorCategory.InvalidOperation, ""));
-        return;
+        // List all physical drives if none specified.
+        deviceIds = GceTools.GcePdLib.GetAllPhysicalDeviceIds();
+        if (deviceIds.Length == 0)
+        {
+          var ex = new InvalidOperationException(
+            "No device IDs specified and no physical drives were found");
+          WriteError(new ErrorRecord(ex, ex.ToString(),
+            ErrorCategory.InvalidOperation, ""));
+          return;
+        }
       }
+
       for (int i = 0; i < deviceIds.Length; ++i)
       {
         try

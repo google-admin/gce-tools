@@ -9,6 +9,13 @@ using AlphaOmega.Debug.Native;
 namespace GceTools
 {
   using Microsoft.Win32.SafeHandles;
+  using System.Collections.Generic;
+  using System.Linq;
+  // Make sure that the Visual Studio project "references" System.Management:
+  // right-click on References in the Solution Explorer, Add Reference, search
+  // for System.Management and check the box.
+  // https://stackoverflow.com/a/11660206/1230197
+  using System.Management;  // for WqlObjectQuery
 
   using LPSECURITY_ATTRIBUTES = System.IntPtr;
   using LPOVERLAPPED = System.IntPtr;
@@ -210,6 +217,34 @@ namespace GceTools
       }
       hDevice.Close();
       return null;
+    }
+
+    // Returns a list of the deviceIds of all of the physical disks attached
+    // to the system. This is equivalent to running
+    // `(Get-PhysicalDisk).deviceId` in PowerShell.
+    public static string[] GetAllPhysicalDeviceIds()
+    {
+      // Adapted from https://stackoverflow.com/a/39869074/1230197
+      List<String> physicalDrives;
+
+      var query = new WqlObjectQuery("SELECT * FROM Win32_DiskDrive");
+      using (var searcher = new ManagementObjectSearcher(query))
+      {
+        physicalDrives = searcher.Get()
+                         .OfType<ManagementObject>()
+                         .Select(o => o.Properties["DeviceID"].Value.ToString())
+                         .ToList();
+      }
+
+      string[] stripped = new string[physicalDrives.Count];
+      int i = 0;
+      foreach (String drive in physicalDrives)
+      {
+        // Strip off '\\.\PHYSICALDRIVE' prefix
+        stripped[i] = drive.Substring(PHYSICALDRIVE.Length);
+        ++i;
+      }
+      return stripped;
     }
   }
 }

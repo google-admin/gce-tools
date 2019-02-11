@@ -53,34 +53,60 @@ namespace GetGcePdName
     [ValidateNotNullOrEmpty]
     public string[] DeviceId
     {
-      get { return this.deviceIds; }
-      set { this.deviceIds = value; }
+      get { return deviceIds; }
+      set { deviceIds = value; }
     }
     #endregion Parameters
+
+    #region PdName
+    /// <summary>
+    /// The object returned by the Get-GcePdName cmdlet: a mapping from the PD
+    /// name to its physical disk number.
+    /// </summary>
+    // Adapted from example at
+    // https://docs.microsoft.com/en-us/powershell/developer/cmdlet/creating-a-cmdlet-to-access-a-data-store#code-sample
+    public class PdName
+    {
+      // This is an "auto property"
+      public string Name { get; set; }
+
+      // This is an "auto property"
+      public string DeviceId { get; set; }
+
+      public override string ToString()
+      {
+        return String.Format("{0}\t{1}", Name, DeviceId);
+      }
+    }
+    #endregion PdName
 
     #region Cmdlet Overrides
     protected override void ProcessRecord()
     {
-      if (this.deviceIds == null)
+      if (deviceIds == null)
       {
         var ex = new InvalidOperationException("No device IDs specified");
         WriteError(new ErrorRecord(ex, ex.ToString(),
           ErrorCategory.InvalidOperation, ""));
         return;
       }
-      for (int i = 0; i < this.deviceIds.Length; ++i)
+      for (int i = 0; i < deviceIds.Length; ++i)
       {
         try
         {
-          string name = GceTools.GcePdLib.Get_GcePdName(this.deviceIds[i]);
-          WriteObject(name);
+          PdName pd = new PdName
+          {
+            Name = GceTools.GcePdLib.Get_GcePdName(deviceIds[i]),
+            DeviceId = deviceIds[i]
+          };
+          WriteObject(pd);
         }
         catch (Win32Exception ex)
         {
           WriteError(new ErrorRecord(ex, ex.ToString(),
-            ErrorCategory.ReadError, this.deviceIds[i]));
+            ErrorCategory.ReadError, deviceIds[i]));
           continue;
-        }      
+        }
       }
     }
     #endregion Cmdlet Overrides

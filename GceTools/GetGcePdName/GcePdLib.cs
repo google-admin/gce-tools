@@ -84,8 +84,13 @@ namespace GceTools
     private static readonly uint IOCTL_STORAGE_QUERY_PROPERTY = CTL_CODE(
         IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS);
 
-    // deviceId is the physical disk number, e.g. from Get-PhysicalDisk.
-    // Throws: System.ComponentModel.Win32Exception
+    // deviceId is the physical disk number, e.g. from Get-PhysicalDisk. If the
+    // device is determined to be a GCE PD then its name will be returned.
+    //
+    // Throws:
+    //   System.ComponentModel.Win32Exception: if we could not open a handle for
+    //     the device (probably because deviceId is invalid)
+    //   InvalidOperationException: if the device is not a GCE PD.
     public static string Get_GcePdName(string deviceId)
     {
       string physicalDrive = PHYSICALDRIVE + deviceId;
@@ -178,15 +183,25 @@ namespace GceTools
           // CreateFile calls for this disk or others may fail.
           hDevice.Close();
 
+          // Empirically the SCSI identifier for GCE PDs always begins with
+          // "Google". Physical disk objects passed to this function may
+          // represent storage devices other than PDs though - for example,
+          // Docker containers that are running have a "Msft Virtual Disk"
+          // associated with them (why this is considered a PhysicalDisk, I have
+          // no idea...). Therefore we check for the presence of the Google
+          // prefix and throw an exception if it's not found.
+          //
+          // TODO(pjh): make this more robust? Not sure if the Google prefix is
+          // guaranteed or subject to change in the future.
           string fullName = System.Text.Encoding.ASCII.GetString(
             storageIdentifier.Identifier, 0, storageIdentifier.IdentifierSize);
-          // TODO(pjh): make this more robust? Works well enough on two Windows
-          // Server 2016 VMs at least.
           if (!fullName.StartsWith(GOOGLEPREFIX))
           {
-            Console.WriteLine("WARNING: unexpectedly got back disk name {0} " +
-              "that doesn't contain Google prefix {1}", fullName, GOOGLEPREFIX);
-            return fullName;
+            var e = new InvalidOperationException(
+              String.Format("deviceId {0} maps to {1} which is not a GCE PD",
+                deviceId, fullName));
+            WriteDebugLine(String.Format("{0}", e.ToString()));
+            throw e;
           }
           return fullName.Substring(GOOGLEPREFIX.Length);
         }

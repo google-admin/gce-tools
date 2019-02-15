@@ -108,11 +108,19 @@ namespace GetGcePdName
           };
           WriteObject(pd);
         }
-        catch (Win32Exception ex)
+        catch (Exception ex)
         {
-          WriteError(new ErrorRecord(ex, ex.ToString(),
-            ErrorCategory.ReadError, deviceIds[i]));
-          continue;
+          if (ex is Win32Exception)
+          {
+            WriteError(new ErrorRecord(ex, ex.ToString(),
+              ErrorCategory.ReadError, deviceIds[i]));
+            continue;
+          } else if (ex is InvalidOperationException)
+          {
+            // InvalidOperation indicates that the deviceId is not for a GCE PD;
+            // just ignore it.
+            continue;
+          }
         }
       }
     }
